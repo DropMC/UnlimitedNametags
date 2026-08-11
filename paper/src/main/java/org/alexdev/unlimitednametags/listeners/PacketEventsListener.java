@@ -126,6 +126,7 @@ public class PacketEventsListener extends PacketListenerAbstract {
         final WrapperPlayServerSetPassengers packet = new WrapperPlayServerSetPassengers(event);
         final Optional<? extends Player> player = plugin.getPlayerListener().getPlayerFromEntityId(packet.getEntityId());
         if (player.isEmpty()) {
+            handleEntityPassengers(event, packet);
             return;
         }
 
@@ -153,6 +154,37 @@ public class PacketEventsListener extends PacketListenerAbstract {
         }
 
         plugin.getPacketManager().setPassengers(player.get(), vanillaPassengers);
+    }
+
+    /**
+     * Same re-attach the player path does, for vehicles that are not players. Mounting a renamed horse makes vanilla
+     * send a passenger list holding only the rider, which unmounts the nametag display; it then stays frozen at the
+     * position it last rode to, including after dismounting.
+     */
+    private void handleEntityPassengers(@NotNull PacketSendEvent event, @NotNull WrapperPlayServerSetPassengers packet) {
+        final EntityNameTagManager manager = plugin.getEntityNametagManager();
+        if (manager == null) {
+            return;
+        }
+
+        final List<Integer> displayEntityIds = manager.displayIdsFor(packet.getEntityId());
+        if (displayEntityIds.isEmpty()) {
+            return;
+        }
+
+        final List<Integer> passengers = collectPassengers(packet.getPassengers());
+        final Set<Integer> displayEntityIdSet = new HashSet<>(displayEntityIds);
+        final List<Integer> vanillaPassengers = passengers.stream()
+                .filter(passenger -> !displayEntityIdSet.contains(passenger))
+                .toList();
+        final List<Integer> updatedPassengers = new ArrayList<>(vanillaPassengers.size() + displayEntityIds.size());
+        updatedPassengers.addAll(vanillaPassengers);
+        updatedPassengers.addAll(displayEntityIds);
+
+        if (!updatedPassengers.equals(passengers)) {
+            packet.setPassengers(updatedPassengers.stream().mapToInt(Integer::intValue).toArray());
+            event.markForReEncode(true);
+        }
     }
 
     @NotNull

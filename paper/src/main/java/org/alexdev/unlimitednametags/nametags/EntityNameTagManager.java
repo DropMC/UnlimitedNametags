@@ -143,6 +143,9 @@ public class EntityNameTagManager {
         if (config.isOnlyTamed() && !isTamed(entity)) {
             return false;
         }
+        if (!entity.getPassengers().isEmpty()) {
+            return false;
+        }
         return !config.isRequireCustomName() || entity.customName() != null;
     }
 
@@ -160,8 +163,8 @@ public class EntityNameTagManager {
             return;
         }
         final TrackedEntity entry = tracked.computeIfAbsent(entity.getUniqueId(), id -> create(entity));
-        entry.display.showToViewer(viewer.getUniqueId());
-        entry.display.applyTextTo(viewer.getUniqueId());
+        entry.display().showToViewer(viewer.getUniqueId());
+        entry.display().applyTextTo(viewer.getUniqueId());
     }
 
     public void handleUntrack(@NotNull final Player viewer, @NotNull final Entity entity) {
@@ -169,15 +172,15 @@ public class EntityNameTagManager {
         if (entry == null) {
             return;
         }
-        entry.display.hideFromViewer(viewer.getUniqueId());
-        if (entry.display.getViewers().isEmpty()) {
+        entry.display().hideFromViewer(viewer.getUniqueId());
+        if (entry.display().getViewers().isEmpty()) {
             remove(entity.getUniqueId());
         }
     }
 
     public void handleQuit(@NotNull final Player viewer) {
         for (final TrackedEntity entry : tracked.values()) {
-            entry.display.handleQuit(viewer.getUniqueId());
+            entry.display().handleQuit(viewer.getUniqueId());
         }
     }
 
@@ -199,7 +202,7 @@ public class EntityNameTagManager {
             return;
         }
         if (entry != null) {
-            entry.display.updateText(buildText(entity));
+            entry.display().updateText(buildText(entity));
             return;
         }
         for (final Player viewer : entity.getTrackedBy()) {
@@ -224,8 +227,7 @@ public class EntityNameTagManager {
         display.setVisible(true);
 
         final TrackedEntity entry = new TrackedEntity(entity, display);
-        entry.display.updateText(buildText(entity));
-        entry.refreshPassengers();
+        entry.display().updateText(buildText(entity));
         byEntityId.put(entity.getEntityId(), entityId);
         return entry;
     }
@@ -233,7 +235,7 @@ public class EntityNameTagManager {
     @Nullable
     private Entity resolveEntity(@NotNull final UUID entityId) {
         final TrackedEntity entry = tracked.get(entityId);
-        return entry != null ? entry.entity : null;
+        return entry != null ? entry.entity() : null;
     }
 
     private void remove(@NotNull final UUID entityId) {
@@ -241,8 +243,8 @@ public class EntityNameTagManager {
         if (entry == null) {
             return;
         }
-        byEntityId.remove(entry.entity.getEntityId());
-        entry.display.remove();
+        byEntityId.remove(entry.entity().getEntityId());
+        entry.display().remove();
     }
 
     public void removeAll() {
@@ -258,12 +260,11 @@ public class EntityNameTagManager {
     private void tick() {
         for (final Map.Entry<UUID, TrackedEntity> mapping : new HashSet<>(tracked.entrySet())) {
             final TrackedEntity entry = mapping.getValue();
-            if (!shouldRender(entry.entity)) {
+            if (!shouldRender(entry.entity())) {
                 remove(mapping.getKey());
                 continue;
             }
-            entry.refreshPassengers();
-            entry.display.updateText(buildText(entry.entity));
+            entry.display().updateText(buildText(entry.entity()));
         }
     }
 
@@ -281,14 +282,31 @@ public class EntityNameTagManager {
 
     // ─── Passengers ───────────────────────────────────────────────────────────
 
+    /**
+     * Display ids riding the given entity. Vanilla rewrites the whole passenger list whenever someone mounts or
+     * dismounts, so the outgoing packet has to have these appended back or the display is silently unmounted and
+     * freezes at its last absolute position.
+     */
+    @NotNull
+    public List<Integer> displayIdsFor(final int bukkitEntityId) {
+        final UUID entityId = byEntityId.get(bukkitEntityId);
+        if (entityId == null) {
+            return List.of();
+        }
+        final TrackedEntity entry = tracked.get(entityId);
+        return entry == null ? List.of() : List.of(entry.display().displayEntityId());
+    }
+
+    /**
+     * A rendered entity never has passengers of its own, so the display is the whole list.
+     */
     public void sendPassengersPacket(@NotNull final User viewer, @NotNull final UUID ownerId) {
         final TrackedEntity entry = tracked.get(ownerId);
         if (entry == null) {
             return;
         }
-        final List<Integer> passengers = new ArrayList<>(entry.realPassengers);
-        passengers.add(entry.display.displayEntityId());
-        plugin.getPacketManager().sendEntityPassengersPacket(viewer, entry.entity.getEntityId(), passengers);
+        plugin.getPacketManager().sendEntityPassengersPacket(viewer, entry.entity().getEntityId(),
+                List.of(entry.display().displayEntityId()));
     }
 
     // ─── Text ─────────────────────────────────────────────────────────────────
@@ -385,31 +403,8 @@ public class EntityNameTagManager {
     }
 
     /**
-     * One rendered entity: the Bukkit handle, its display, and the passenger ids read on the main thread for the
-     * async mount packet.
+     * One rendered entity: the Bukkit handle and its display.
      */
-    private static final class TrackedEntity {
-
-        private final Entity entity;
-        private final EntityTextPacketNameTag display;
-        private volatile List<Integer> realPassengers = List.of();
-
-        private TrackedEntity(@NotNull final Entity entity, @NotNull final EntityTextPacketNameTag display) {
-            this.entity = entity;
-            this.display = display;
-        }
-
-        private void refreshPassengers() {
-            final List<Entity> passengers = entity.getPassengers();
-            if (passengers.isEmpty()) {
-                realPassengers = List.of();
-                return;
-            }
-            final List<Integer> ids = new ArrayList<>(passengers.size());
-            for (final Entity passenger : passengers) {
-                ids.add(passenger.getEntityId());
-            }
-            realPassengers = List.copyOf(ids);
-        }
+    private record TrackedEntity(@NotNull Entity entity, @NotNull EntityTextPacketNameTag display) {
     }
 }

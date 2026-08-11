@@ -11,6 +11,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityDismountEvent;
+import org.bukkit.event.entity.EntityMountEvent;
 import org.bukkit.event.entity.EntityTameEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -76,6 +78,30 @@ public class EntityNametagListener implements Listener {
             return;
         }
         scheduleStateChange(event.getEntity());
+    }
+
+    /**
+     * A passenger hides the nametag: the display would have to share the vehicle's passenger slots with the rider,
+     * which shifts it out of place. Removed immediately so it does not linger for a tick on top of the rider.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onMount(@NotNull EntityMountEvent event) {
+        if (!plugin.getEntityNametagManager().isEnabled()) {
+            return;
+        }
+        plugin.getEntityNametagManager().handleEntityRemoved(event.getMount().getUniqueId());
+    }
+
+    /**
+     * The rider is still attached while this event runs, so the vehicle is re-evaluated a tick later, once its
+     * passenger list is actually empty.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDismount(@NotNull EntityDismountEvent event) {
+        if (!plugin.getEntityNametagManager().isEnabled()) {
+            return;
+        }
+        scheduleStateChange(event.getDismounted());
     }
 
     private void scheduleStateChange(@NotNull Entity entity) {
