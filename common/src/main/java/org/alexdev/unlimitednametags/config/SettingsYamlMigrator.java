@@ -84,6 +84,7 @@ public final class SettingsYamlMigrator {
                 case 4 -> changed |= migrateV4ToV5(root, log);
                 case 5 -> changed |= migrateV5ToV6(root, log);
                 case 6 -> changed |= migrateV6ToV7(root, log);
+                case 7 -> changed |= migrateV7ToV8(root, log);
                 default -> throw new IllegalStateException("Missing settings migrator from v" + v + " to v" + (v + 1));
             }
         }
@@ -760,6 +761,18 @@ public final class SettingsYamlMigrator {
         performance.put("distanceRefreshCulling", culling);
         log.info("Added distance refresh culling settings (v7).");
         return true;
+    }
+
+    /**
+     * {@code entityNametags} is purely additive: ConfigLib writes the section with its defaults and comments when the
+     * bumped {@code configVersion} triggers a save, so there is nothing to rewrite here.
+     */
+    private static boolean migrateV7ToV8(Map<String, Object> root, Logger log) {
+        if (root.containsKey("entityNametags")) {
+            return false;
+        }
+        log.info("Added entity nametag settings (v8).");
+        return false;
     }
 
     private static Map<String, Object> defaultGlowAnimationsYaml() {

@@ -17,6 +17,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTe
 import com.google.common.collect.Maps;
 import org.alexdev.unlimitednametags.UnlimitedNameTags;
 import org.alexdev.unlimitednametags.data.TeamData;
+import org.alexdev.unlimitednametags.nametags.EntityNameTagManager;
 import org.alexdev.unlimitednametags.packet.PacketNameTag;
 import org.alexdev.unlimitednametags.packet.PaperNametagRow;
 import org.bukkit.entity.Player;
@@ -25,6 +26,11 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 
 public class PacketEventsListener extends PacketListenerAbstract {
+
+    /** {@code Entity.DATA_CUSTOM_NAME}. */
+    private static final int CUSTOM_NAME_INDEX = 2;
+    /** {@code Entity.DATA_CUSTOM_NAME_VISIBLE}. */
+    private static final int CUSTOM_NAME_VISIBLE_INDEX = 3;
 
     private final UnlimitedNameTags plugin;
     private final Map<UUID, Map<String, TeamData>> teams;
@@ -271,6 +277,11 @@ public class PacketEventsListener extends PacketListenerAbstract {
         if (!(event.getPlayer() instanceof Player)) {
             return;
         }
+
+        if (stripManagedEntityName(event)) {
+            return;
+        }
+
         int protocol = event.getUser().getClientVersion().getProtocolVersion();
         //handle metadata for : bedrock players && client with version 1.20.1 or lower
         if (protocol >= 764) {
@@ -292,6 +303,36 @@ public class PacketEventsListener extends PacketListenerAbstract {
                 return;
             }
         }
+    }
+
+    /**
+     * Drops the vanilla custom name from entities the plugin already draws a display for, so the two do not stack.
+     * Index 2 is {@code Entity.DATA_CUSTOM_NAME} and index 3 is {@code Entity.DATA_CUSTOM_NAME_VISIBLE}; both sit on
+     * the base entity class, so the indices hold for every entity type.
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private boolean stripManagedEntityName(@NotNull PacketSendEvent event) {
+        final EntityNameTagManager manager = plugin.getEntityNametagManager();
+        if (manager == null || !manager.shouldHideVanillaName()) {
+            return false;
+        }
+
+        final WrapperPlayServerEntityMetadata packet = new WrapperPlayServerEntityMetadata(event);
+        if (!manager.isManaged(packet.getEntityId())) {
+            return false;
+        }
+
+        final List metadata = new ArrayList(packet.getEntityMetadata());
+        final boolean removed = metadata.removeIf(data ->
+                ((EntityData) data).getIndex() == CUSTOM_NAME_INDEX
+                        || ((EntityData) data).getIndex() == CUSTOM_NAME_VISIBLE_INDEX);
+        if (!removed) {
+            return false;
+        }
+
+        packet.setEntityMetadata(metadata);
+        event.markForReEncode(true);
+        return true;
     }
 
     public boolean existsPlayer(@NotNull String name) {

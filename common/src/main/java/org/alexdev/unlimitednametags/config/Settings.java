@@ -25,7 +25,7 @@ public class Settings {
             "1 = flat NameTag, 2 = displayGroups with string lines, 3 = displayGroups with structured lines,",
             "4 = unified Background (no type: discriminator) + sectioned settings,",
             "5 = throughWallMode, 6 = glowAnimations + per-row glow,",
-            "7 = distance refresh culling (current)."
+            "7 = distance refresh culling, 8 = entityNametags (current)."
     })
     private int configVersion = SettingsConfigVersion.CURRENT;
 
@@ -45,6 +45,9 @@ public class Settings {
 
     @Comment("Performance and caching settings.")
     private Performance performance = new Performance();
+
+    @Comment("Nametags for non-player entities (named animals, tamed pets).")
+    private EntityNametags entityNametags = new EntityNametags();
 
     @Comment("Match PAPI output strings. Quote reserved YAML 1.1 words: use placeholder: \"Yes\" not Yes (otherwise they become booleans).")
     private Map<String, List<PlaceholderReplacement>> placeholdersReplacements = defaultPlaceholdersReplacements();
@@ -285,6 +288,79 @@ public class Settings {
     }
 
     // ─── Nested types ─────────────────────────────────────────────────────────
+
+    /**
+     * Nametags for non-player entities. Vanilla renders an entity's custom name only when the viewer aims at it from
+     * close range, and a tamed pet inherits its owner's scoreboard team, so a hidden player nametag hides the pet's
+     * name as well. Rendering the name as a text display sidesteps both rules.
+     */
+    @Configuration
+    @Getter
+    @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
+    public static class EntityNametags {
+
+        @Comment("Master switch for entity nametags. Player nametags are unaffected.")
+        private boolean enabled = false;
+
+        @Comment({
+                "Only render entities that carry a custom name (name tag item, /minecraft:data, or a plugin).",
+                "When false, every allowed type gets a nametag built from `format`."
+        })
+        private boolean requireCustomName = true;
+
+        @Comment("Only render entities that are tamed and owned by a player.")
+        private boolean onlyTamed = false;
+
+        @Comment({
+                "Bukkit entity types to render. An empty list means every living non-player entity.",
+                "Applied before `blacklistedEntityTypes`."
+        })
+        private List<String> entityTypes = new ArrayList<>(List.of(
+                "WOLF", "CAT", "PARROT", "HORSE", "DONKEY", "MULE", "LLAMA", "TRADER_LLAMA", "CAMEL", "AXOLOTL", "FOX"));
+
+        @Comment("Entity types never rendered, applied after `entityTypes`.")
+        private List<String> blacklistedEntityTypes = new ArrayList<>(List.of("ARMOR_STAND", "PLAYER"));
+
+        @Comment({
+                "The nametag line. Placeholders: %entity_name%, %entity_type%, %owner_name%, %health%, %max_health%.",
+                "Formatted with behavior.format. PlaceholderAPI is not applied (there is no player context)."
+        })
+        private String format = "%entity_name%";
+
+        @Comment("Extra line under the name for tamed pets. Empty disables it.")
+        private String tamedFormat = "";
+
+        @Comment({
+                "Strip the vanilla custom name from packets for rendered entities so the two do not overlap.",
+                "Disable only if another plugin depends on clients receiving the name."
+        })
+        private boolean hideVanillaName = true;
+
+        @Comment("Ticks between name/health refreshes for rendered entities.")
+        private int refreshInterval = 40;
+
+        @Comment("Vertical offset (blocks) above the entity's height.")
+        private float yOffset = 0.25f;
+
+        private float scale = 1f;
+
+        @Comment("Divided by 160 and sent as the display view_range, matching behavior.viewDistance.")
+        private float viewDistance = 40;
+
+        @Setter
+        @Comment("Billboard constraints for entity nametags (CENTER, HORIZONTAL, VERTICAL, FIXED).")
+        private AbstractDisplayMeta.BillboardConstraints billboard = AbstractDisplayMeta.BillboardConstraints.CENTER;
+
+        private Background background = Background.ofRGB(false, 0, 0, 0, 0, false, false);
+
+        public float getViewDistance() {
+            return viewDistance / 160;
+        }
+
+        public int resolveRefreshInterval() {
+            return Math.max(1, refreshInterval);
+        }
+    }
 
     public record PlaceholderReplacement(String placeholder, String replacement) {
     }

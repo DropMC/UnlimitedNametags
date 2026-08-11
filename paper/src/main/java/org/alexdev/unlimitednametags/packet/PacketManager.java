@@ -85,6 +85,32 @@ public class PacketManager {
         });
     }
 
+    /**
+     * Mounts entity nametag displays on a non-player entity. Unlike the player path, the full passenger list is
+     * supplied by the caller: it must already contain the entity's real passengers (a ridden horse would otherwise
+     * throw its rider off client-side), and reading those is only safe on the main thread.
+     */
+    public void sendEntityPassengersPacket(@NotNull User viewer, int ownerEntityId, @NotNull List<Integer> passengerIds) {
+        if (passengerIds.isEmpty()) {
+            return;
+        }
+        final int[] passengersArray = passengerIds.stream().mapToInt(Integer::intValue).toArray();
+        executorService.submit(() -> {
+            if (viewer.getChannel() == null) {
+                return;
+            }
+            viewer.sendPacketSilently(new WrapperPlayServerSetPassengers(ownerEntityId, passengersArray));
+        });
+    }
+
+    /**
+     * Entity displays are not tracked in the player passenger map; the destroy packet that removes the display also
+     * unmounts it client-side, so there is nothing to forget here.
+     */
+    public void removeEntityPassenger(int displayEntityId) {
+        this.passengers.removeValueFromAll(displayEntityId);
+    }
+
     public void removePassenger(@NotNull Player player, int passenger) {
         this.passengers.remove(player.getUniqueId(), passenger);
     }

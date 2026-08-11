@@ -24,6 +24,7 @@ import org.alexdev.unlimitednametags.hook.hat.HatHook;
 import org.alexdev.unlimitednametags.listeners.*;
 import org.alexdev.unlimitednametags.metrics.Metrics;
 import org.alexdev.unlimitednametags.nametags.ConditionalManager;
+import org.alexdev.unlimitednametags.nametags.EntityNameTagManager;
 import org.alexdev.unlimitednametags.nametags.NameTagManager;
 import org.alexdev.unlimitednametags.packet.KyoriManager;
 import org.alexdev.unlimitednametags.packet.PacketManager;
@@ -56,6 +57,7 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
     private boolean isPaper;
     private ConfigManager configManager;
     private NameTagManager nametagManager;
+    private EntityNameTagManager entityNametagManager;
     private PlaceholderManager placeholderManager;
     private VanishManager vanishManager;
     private PacketEventsListener packetEventsListener;
@@ -104,6 +106,13 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
         vanishManager = new VanishManager(this);
         packetManager = new PacketManager(this);
         conditionalManager = new ConditionalManager(this);
+
+        entityNametagManager = new EntityNameTagManager(this);
+        if (isPaper) {
+            Bukkit.getPluginManager().registerEvents(new EntityNametagListener(this), this);
+        } else if (configManager.getSettings().getEntityNametags().isEnabled()) {
+            getLogger().warning("entityNametags requires Paper's entity tracker; the feature stays disabled on Spigot.");
+        }
 
 
         loadCommands();
@@ -441,6 +450,9 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
         }
         if (packetEventsListener != null) {
             packetEventsListener.onDisable();
+        }
+        if (entityNametagManager != null) {
+            entityNametagManager.onDisable();
         }
         if (nametagManager != null) {
             nametagManager.removeAll();
