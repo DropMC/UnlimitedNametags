@@ -936,7 +936,7 @@ public class NameTagManager implements UntNametagManagerPaper {
                 packetNameTag.checkScale();
             }
             if (force) {
-                packetNameTag.updateYOOffset();
+                packetNameTag.resetOffset(cfg.getBehavior().getYOffset());
             }
             return;
         }
@@ -944,7 +944,7 @@ public class NameTagManager implements UntNametagManagerPaper {
             packetNameTag.checkScale();
         }
         if (force) {
-            packetNameTag.updateYOOffset();
+            packetNameTag.resetOffset(cfg.getBehavior().getYOffset());
         }
 
         final PaperNametagRow row = paperRow(packetNameTag);
@@ -982,7 +982,12 @@ public class NameTagManager implements UntNametagManagerPaper {
         if (force || meta.getBackgroundColor() != backgroundColor) {
             meta.setBackgroundColor(backgroundColor);
         }
-        if (force || meta.isSeeThrough() != seeThrough) {
+        // In OBSCURED the see-through flag is per viewer and owned by
+        // applyObscuredLineOfSightPresentation, which skips a resend whenever its own snapshot
+        // already matches. Writing the flag here clears it without invalidating that snapshot,
+        // so the obscured presentation is never re-sent and the nametag goes back to opaque
+        // until the viewer's line of sight changes again.
+        if (throughWallMode != Settings.ThroughWallMode.OBSCURED && (force || meta.isSeeThrough() != seeThrough)) {
             meta.setSeeThrough(seeThrough);
         }
     }
