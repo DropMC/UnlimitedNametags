@@ -41,6 +41,7 @@ dependencies {
     compileOnly(libs.creative.serializer)
     compileOnly(libs.libs.disguises)
     compileOnly(libs.hmcCosmetics)
+    compileOnly(libs.modelEngine)
 
     implementation(libs.universalScheduler)
     implementation(libs.libbyBukkit)

@@ -5,6 +5,7 @@ import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.protocol.world.Location;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import org.alexdev.unlimitednametags.UnlimitedNameTags;
+import org.alexdev.unlimitednametags.hook.ModelEngineHook;
 import org.alexdev.unlimitednametags.hook.ViaVersionHook;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -183,8 +184,21 @@ public final class BukkitEntityNametagPlatform implements NametagPlatformBridge 
         final org.bukkit.Location bukkit = entity.getLocation();
         bukkit.setPitch(0);
         bukkit.setYaw(-180);
-        bukkit.setY(bukkit.getY() + entity.getHeight() * displayScale);
+        bukkit.setY(bukkit.getY() + visibleHeight(entity) * displayScale);
         return SpigotConversionUtil.fromBukkitLocation(bukkit);
+    }
+
+    /**
+     * How tall the entity looks, which is not always how tall it is. An entity wearing a model keeps the hitbox of
+     * whatever it was before the model went on, so the two disagree by the whole difference in size and the name is
+     * drawn inside the body. The model wins whenever it is the taller of the two, so an entity without one, or with
+     * one smaller than itself, keeps the height it always had.
+     */
+    private double visibleHeight(@NotNull Entity entity) {
+        final double modelHeight = plugin.getHook(ModelEngineHook.class)
+                .map(hook -> hook.modelHeight(entity))
+                .orElse(0d);
+        return Math.max(entity.getHeight(), modelHeight);
     }
 
     @Override

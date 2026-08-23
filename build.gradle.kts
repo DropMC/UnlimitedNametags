@@ -44,6 +44,7 @@ subprojects {
             url = uri("https://dist.labymod.net/api/v1/maven/release/")
         }
         maven("https://repo.hibiscusmc.com/releases")
+        maven("https://mvn.lumine.io/repository/maven-public/")
     }
 
     tasks.withType<JavaCompile>().configureEach {

@@ -280,6 +280,12 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
             getLogger().info("FeatherServerAPI found, hooking into it");
         }
 
+        if (Bukkit.getPluginManager().isPluginEnabled("ModelEngine")) {
+            final ModelEngineHook hook = new ModelEngineHook(this);
+            hooks.put(ModelEngineHook.class, hook);
+            getLogger().info("ModelEngine found, hooking into it");
+        }
+
         if (Bukkit.getPluginManager().isPluginEnabled("HMCCosmetics")) {
             final HMCCosmeticsHook hook = new HMCCosmeticsHook(this);
             hatHooks.add(hook);
