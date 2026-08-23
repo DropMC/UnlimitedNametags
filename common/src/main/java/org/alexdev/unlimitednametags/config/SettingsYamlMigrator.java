@@ -85,6 +85,7 @@ public final class SettingsYamlMigrator {
                 case 5 -> changed |= migrateV5ToV6(root, log);
                 case 6 -> changed |= migrateV6ToV7(root, log);
                 case 7 -> changed |= migrateV7ToV8(root, log);
+                case 8 -> changed |= migrateV8ToV9(root, log);
                 default -> throw new IllegalStateException("Missing settings migrator from v" + v + " to v" + (v + 1));
             }
         }
@@ -772,6 +773,19 @@ public final class SettingsYamlMigrator {
             return false;
         }
         log.info("Added entity nametag settings (v8).");
+        return false;
+    }
+
+    /**
+     * The follow settings are additive inside a section that already exists, so ConfigLib writes them with their
+     * defaults and comments when the bumped {@code configVersion} triggers a save.
+     */
+    private static boolean migrateV8ToV9(Map<String, Object> root, Logger log) {
+        final Object section = root.get("entityNametags");
+        if (section instanceof Map<?, ?> entityNametags && entityNametags.containsKey("followEntity")) {
+            return false;
+        }
+        log.info("Added entity nametag follow settings (v9).");
         return false;
     }
 

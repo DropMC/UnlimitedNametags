@@ -1,6 +1,7 @@
 package org.alexdev.unlimitednametags.packet;
 
 import com.github.retrooper.packetevents.protocol.player.User;
+import com.github.retrooper.packetevents.protocol.world.Location;
 import com.github.retrooper.packetevents.util.Vector3f;
 import me.tofaa.entitylib.meta.display.TextDisplayMeta;
 import me.tofaa.entitylib.wrapper.WrapperEntity;
@@ -30,6 +31,8 @@ public final class EntityTextPacketNameTag extends TextPacketNameTag {
     private final UnlimitedNameTags plugin;
     private final Settings.EntityNametags config;
     private volatile Component text;
+    private volatile boolean following;
+    private volatile int followInterpolation;
 
     public EntityTextPacketNameTag(@NotNull final UnlimitedNameTags plugin, @NotNull final UUID ownerId,
             @NotNull final Supplier<Entity> ownerSupplier, @NotNull final Settings.DisplayGroup displayGroup,
@@ -69,6 +72,7 @@ public final class EntityTextPacketNameTag extends TextPacketNameTag {
         }
         meta.setBillboardConstraints(config.getBillboard());
         meta.setViewRange(config.getViewDistance());
+        meta.setPositionRotationInterpolationDuration(following ? followInterpolation : 0);
 
         final float resolvedScale = getScale();
         meta.setScale(new Vector3f(resolvedScale, resolvedScale, resolvedScale));
@@ -93,6 +97,42 @@ public final class EntityTextPacketNameTag extends TextPacketNameTag {
                 refreshForViewer(viewerId, true);
             }
         }
+    }
+
+    public boolean isFollowing() {
+        return following;
+    }
+
+    /**
+     * Switches between riding the owner entity and being driven by absolute position.
+     * <p>
+     * Following is for owners the client never receives, so there is no vehicle to ride and the position has to be
+     * pushed every {@code interpolationTicks}. The same value is handed to the display as its teleport duration, so
+     * the client interpolates between updates instead of stuttering from one packet to the next.
+     *
+     * @param interpolationTicks ticks the client spends moving to each new position; ignored when not following
+     */
+    public void setFollowing(final boolean following, final int interpolationTicks) {
+        if (this.following == following && this.followInterpolation == interpolationTicks) {
+            return;
+        }
+        this.following = following;
+        this.followInterpolation = interpolationTicks;
+        modifyAbstractAll(meta -> meta.setPositionRotationInterpolationDuration(following ? interpolationTicks : 0));
+    }
+
+    /**
+     * Pushes the display's current absolute position to every viewer. Only meaningful while following.
+     * <p>
+     * Uses {@code teleport} rather than {@code setLocation}: the latter only updates the wrapper's own field, so the
+     * display would keep rendering wherever it was spawned.
+     */
+    public void syncPosition() {
+        final Location location = getOffsetPeLocation();
+        if (location == null) {
+            return;
+        }
+        modifyEntity(entity -> entity.teleport(location));
     }
 
     /**

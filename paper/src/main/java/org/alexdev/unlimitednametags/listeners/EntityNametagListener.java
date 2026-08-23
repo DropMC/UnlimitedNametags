@@ -1,5 +1,6 @@
 package org.alexdev.unlimitednametags.listeners;
 
+import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent;
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent;
 import io.papermc.paper.event.player.PlayerTrackEntityEvent;
 import io.papermc.paper.event.player.PlayerUntrackEntityEvent;
@@ -41,6 +42,19 @@ public class EntityNametagListener implements Listener {
             return;
         }
         plugin.getEntityNametagManager().handleUntrack(event.getPlayer(), event.getEntity());
+    }
+
+    /**
+     * Plugins that spawn a named entity set the name a few ticks after the entity enters the world, by which time
+     * the track event has already been and gone with no custom name to render. Nothing else re-checks an entity that
+     * was ineligible when it was tracked, so it is re-evaluated shortly after it appears.
+     */
+    @EventHandler
+    public void onAddToWorld(@NotNull EntityAddToWorldEvent event) {
+        if (event.getEntity() instanceof Player || !plugin.getEntityNametagManager().isEnabled()) {
+            return;
+        }
+        scheduleStateChange(event.getEntity(), 20);
     }
 
     @EventHandler
@@ -105,10 +119,14 @@ public class EntityNametagListener implements Listener {
     }
 
     private void scheduleStateChange(@NotNull Entity entity) {
+        scheduleStateChange(entity, 1);
+    }
+
+    private void scheduleStateChange(@NotNull Entity entity, long delayTicks) {
         plugin.getTaskScheduler().runTaskLater(() -> {
             if (entity.isValid()) {
                 plugin.getEntityNametagManager().handleStateChanged(entity);
             }
-        }, 1);
+        }, delayTicks);
     }
 }
