@@ -49,6 +49,7 @@ public class EntityNameTagManager {
     private Set<EntityType> allowedTypes = EnumSet.noneOf(EntityType.class);
     private Set<EntityType> blockedTypes = EnumSet.noneOf(EntityType.class);
     private MyScheduledTask refreshTask;
+    private MyScheduledTask followTask;
 
     public EntityNameTagManager(@NotNull final UnlimitedNameTags plugin) {
         this.plugin = plugin;
@@ -115,12 +116,18 @@ public class EntityNameTagManager {
      */
     private void startTask(final int interval) {
         refreshTask = plugin.getTaskScheduler().runTaskTimer(this::tick, interval, interval);
+        final int followInterval = settings().resolveFollowInterval();
+        followTask = plugin.getTaskScheduler().runTaskTimer(this::followTick, followInterval, followInterval);
     }
 
     private void stopTask() {
         if (refreshTask != null) {
             refreshTask.cancel();
             refreshTask = null;
+        }
+        if (followTask != null) {
+            followTask.cancel();
+            followTask = null;
         }
     }
 
@@ -225,6 +232,7 @@ public class EntityNameTagManager {
         final EntityTextPacketNameTag display = new EntityTextPacketNameTag(
                 plugin, entityId, () -> resolveEntity(entityId), group, config);
         display.setVisible(true);
+        display.setFollowing(config.isFollowEntity(), config.resolveFollowInterval());
 
         final TrackedEntity entry = new TrackedEntity(entity, display);
         entry.display().updateText(buildText(entity));
@@ -269,6 +277,18 @@ public class EntityNameTagManager {
     }
 
     /**
+     * Pushes each followed display to its entity's current position. Nothing else moves it: a followed display is
+     * deliberately not a passenger, so the client would leave it wherever it was spawned.
+     */
+    private void followTick() {
+        for (final TrackedEntity entry : tracked.values()) {
+            if (entry.display().isFollowing()) {
+                entry.display().syncPosition();
+            }
+        }
+    }
+
+    /**
      * True when the plugin draws this entity's name, so the vanilla custom name can be stripped from packets.
      */
     public boolean isManaged(final int bukkitEntityId) {
@@ -283,9 +303,9 @@ public class EntityNameTagManager {
     // ─── Passengers ───────────────────────────────────────────────────────────
 
     /**
-     * Display ids riding the given entity. Vanilla rewrites the whole passenger list whenever someone mounts or
-     * dismounts, so the outgoing packet has to have these appended back or the display is silently unmounted and
-     * freezes at its last absolute position.
+     * Display ids riding the given entity, which is none of them while following. Vanilla rewrites the whole
+     * passenger list whenever someone mounts or dismounts, so a mounted display has to be appended back or it is
+     * silently unmounted and freezes at its last absolute position.
      */
     @NotNull
     public List<Integer> displayIdsFor(final int bukkitEntityId) {
@@ -294,7 +314,10 @@ public class EntityNameTagManager {
             return List.of();
         }
         final TrackedEntity entry = tracked.get(entityId);
-        return entry == null ? List.of() : List.of(entry.display().displayEntityId());
+        if (entry == null || entry.display().isFollowing()) {
+            return List.of();
+        }
+        return List.of(entry.display().displayEntityId());
     }
 
     /**
@@ -302,7 +325,7 @@ public class EntityNameTagManager {
      */
     public void sendPassengersPacket(@NotNull final User viewer, @NotNull final UUID ownerId) {
         final TrackedEntity entry = tracked.get(ownerId);
-        if (entry == null) {
+        if (entry == null || entry.display().isFollowing()) {
             return;
         }
         plugin.getPacketManager().sendEntityPassengersPacket(viewer, entry.entity().getEntityId(),

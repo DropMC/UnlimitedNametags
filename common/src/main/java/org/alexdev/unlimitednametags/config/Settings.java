@@ -339,6 +339,22 @@ public class Settings {
         @Comment("Ticks between name/health refreshes for rendered entities.")
         private int refreshInterval = 40;
 
+        @Comment({
+                "Drive the nametag by position instead of mounting it on the entity as a passenger.",
+                "Mounting is cheaper, but it silently breaks whenever another plugin replaces the entity",
+                "with a model and stops the client from ever receiving the entity itself (ModelEngine and",
+                "BetterModel pets do this): the nametag then has no vehicle to ride and stays frozen where",
+                "it spawned. That hiding happens below the Bukkit API, so it cannot be detected here.",
+                "Turn this off only on a server with no model plugin."
+        })
+        private boolean followEntity = true;
+
+        @Comment({
+                "Ticks between position updates while following. The nametag interpolates over this many",
+                "ticks, so a higher value is cheaper but trails further behind a moving entity."
+        })
+        private int followInterval = 2;
+
         @Comment("Vertical offset (blocks) above the entity's height.")
         private float yOffset = 0.25f;
 
@@ -359,6 +375,10 @@ public class Settings {
 
         public int resolveRefreshInterval() {
             return Math.max(1, refreshInterval);
+        }
+
+        public int resolveFollowInterval() {
+            return Math.max(1, followInterval);
         }
     }
 
