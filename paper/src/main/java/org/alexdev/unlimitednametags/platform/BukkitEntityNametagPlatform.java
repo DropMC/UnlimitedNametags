@@ -22,6 +22,9 @@ import java.util.function.Supplier;
  */
 public final class BukkitEntityNametagPlatform implements NametagPlatformBridge {
 
+    /** Model height in blocks, measured once and kept; 0 until a model has actually been seen. */
+    private volatile double measuredModelHeight;
+
     private final UnlimitedNameTags plugin;
     private final UUID ownerId;
     private final Supplier<Entity> ownerSupplier;
@@ -193,11 +196,23 @@ public final class BukkitEntityNametagPlatform implements NametagPlatformBridge 
      * whatever it was before the model went on, so the two disagree by the whole difference in size and the name is
      * drawn inside the body. The model wins whenever it is the taller of the two, so an entity without one, or with
      * one smaller than itself, keeps the height it always had.
+     *
+     * <p>A model is measured once and the answer kept. This runs on every position push, and re-measuring would both
+     * walk every bone each time and let the name ride up and down with the animation playing underneath it. Only a
+     * real measurement is kept: a model attached after its viewer started tracking the entity reads as no model at
+     * all for a moment, and caching that would leave the name low for as long as the pet is out.</p>
      */
     private double visibleHeight(@NotNull Entity entity) {
+        if (measuredModelHeight > 0) {
+            return Math.max(entity.getHeight(), measuredModelHeight);
+        }
+
         final double modelHeight = plugin.getHook(ModelEngineHook.class)
                 .map(hook -> hook.modelHeight(entity))
                 .orElse(0d);
+        if (modelHeight > 0) {
+            measuredModelHeight = modelHeight;
+        }
         return Math.max(entity.getHeight(), modelHeight);
     }
 
