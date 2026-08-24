@@ -204,16 +204,28 @@ public final class BukkitEntityNametagPlatform implements NametagPlatformBridge 
      */
     private double visibleHeight(@NotNull Entity entity) {
         if (measuredModelHeight > 0) {
-            return Math.max(entity.getHeight(), measuredModelHeight);
+            return modelTop(entity, measuredModelHeight);
         }
 
         final double modelHeight = plugin.getHook(ModelEngineHook.class)
                 .map(hook -> hook.modelHeight(entity))
                 .orElse(0d);
-        if (modelHeight > 0) {
-            measuredModelHeight = modelHeight;
+        if (modelHeight <= 0) {
+            return entity.getHeight();
         }
-        return Math.max(entity.getHeight(), modelHeight);
+
+        measuredModelHeight = modelHeight;
+        return modelTop(entity, modelHeight);
+    }
+
+    /**
+     * Where the top of a measured model sits. The extra offset makes up for the measurement reading a little low:
+     * a bone sits at the origin of the part it renders, not at the top of it. An entity taller than its own model
+     * still wins, so nothing ends up lower than it would be with no model at all.
+     */
+    private double modelTop(@NotNull Entity entity, double modelHeight) {
+        return Math.max(entity.getHeight(), modelHeight + plugin.getConfigManager().getSettings()
+                .getEntityNametags().getModelYOffset());
     }
 
     @Override

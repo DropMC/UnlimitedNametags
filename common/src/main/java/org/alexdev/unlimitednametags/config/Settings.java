@@ -358,6 +358,14 @@ public class Settings {
         @Comment("Vertical offset (blocks) above the entity's height.")
         private float yOffset = 0.25f;
 
+        @Comment({
+                "Extra vertical offset (blocks) for entities wearing a model, added on top of `yOffset`.",
+                "A model is measured by how high its bones reach, and a bone sits at the origin of the part it",
+                "renders rather than at the top of it, so the measurement lands a little under the crown.",
+                "This makes up the difference without moving the nametag of an entity that has no model."
+        })
+        private float modelYOffset = 0.2f;
+
         private float scale = 1f;
 
         @Comment("Divided by 160 and sent as the display view_range, matching behavior.viewDistance.")

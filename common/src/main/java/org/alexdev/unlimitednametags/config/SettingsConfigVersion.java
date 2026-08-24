@@ -11,7 +11,7 @@ public final class SettingsConfigVersion {
     /**
      * Latest schema: version 9 adds the follow settings to {@code entityNametags}.
      */
-    public static final int CURRENT = 9;
+    public static final int CURRENT = 10;
 
     /**
      * {@code displayGroups} with {@link Settings.DisplayGroup}, structured {@code lines} as {@code {text, when?}} objects.

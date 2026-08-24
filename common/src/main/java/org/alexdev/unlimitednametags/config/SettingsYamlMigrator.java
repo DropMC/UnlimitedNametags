@@ -86,6 +86,7 @@ public final class SettingsYamlMigrator {
                 case 6 -> changed |= migrateV6ToV7(root, log);
                 case 7 -> changed |= migrateV7ToV8(root, log);
                 case 8 -> changed |= migrateV8ToV9(root, log);
+                case 9 -> changed |= migrateV9ToV10(root, log);
                 default -> throw new IllegalStateException("Missing settings migrator from v" + v + " to v" + (v + 1));
             }
         }
@@ -786,6 +787,19 @@ public final class SettingsYamlMigrator {
             return false;
         }
         log.info("Added entity nametag follow settings (v9).");
+        return false;
+    }
+
+    /**
+     * Additive inside a section that already exists, so ConfigLib writes it with its default and comment when the
+     * bumped {@code configVersion} triggers a save.
+     */
+    private static boolean migrateV9ToV10(Map<String, Object> root, Logger log) {
+        final Object section = root.get("entityNametags");
+        if (section instanceof Map<?, ?> entityNametags && entityNametags.containsKey("modelYOffset")) {
+            return false;
+        }
+        log.info("Added the entity nametag model offset (v10).");
         return false;
     }
 
