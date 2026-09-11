@@ -242,13 +242,19 @@ public class PlayerListener implements PackSendHandler {
         }
     }
 
+    /**
+     * The event fires before the game mode is applied, so a player leaving spectator still reports
+     * {@link GameMode#SPECTATOR} here and an immediate show would be suppressed by that same check.
+     * The show waits a tick, until the new mode is in place.
+     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onGameModeChange(@NotNull PlayerGameModeChangeEvent e) {
-        if (e.getPlayer().getGameMode() == GameMode.SPECTATOR) {
-            plugin.getNametagManager().unblockPlayer(e.getPlayer());
-            plugin.getNametagManager().showToTrackedPlayers(e.getPlayer());
+        final Player player = e.getPlayer();
+        if (player.getGameMode() == GameMode.SPECTATOR) {
+            plugin.getNametagManager().unblockPlayer(player);
+            plugin.getTaskScheduler().runTaskLaterAsynchronously(() -> recoverNametagVisibility(player), 1);
         } else if (e.getNewGameMode() == GameMode.SPECTATOR) {
-            plugin.getNametagManager().removeAllViewers(e.getPlayer());
+            plugin.getNametagManager().removeAllViewers(player);
         }
     }
 
