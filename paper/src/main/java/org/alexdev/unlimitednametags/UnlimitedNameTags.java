@@ -332,6 +332,22 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
         return Optional.ofNullable(hooks.get(hookType)).map(hookType::cast);
     }
 
+    /**
+     * Whether this player is on Bedrock Edition and therefore sees everything through Geyser.
+     * <p>
+     * Floodgate answers first because it is the hook that exists on a backend server: Geyser itself usually runs
+     * on the proxy, where its API is out of reach from here.
+     *
+     * @return {@code false} when neither Floodgate nor Geyser is installed
+     */
+    public boolean isBedrockPlayer(@NotNull final Player player) {
+        final Optional<FloodgateHook> floodgate = getHook(FloodgateHook.class);
+        if (floodgate.isPresent()) {
+            return floodgate.get().isFloodgatePlayer(player);
+        }
+        return getHook(GeyserHook.class).map(hook -> hook.isBedrockPlayer(player)).orElse(false);
+    }
+
     @Override
     public void registerNametagCustomAnimation(@NotNull final String id, @NotNull final NametagCustomAnimationHandler handler) {
         Objects.requireNonNull(id, "id");
