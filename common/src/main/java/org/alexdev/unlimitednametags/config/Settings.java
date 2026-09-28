@@ -49,9 +49,6 @@ public class Settings {
     @Comment("Nametags for non-player entities (named animals, tamed pets).")
     private EntityNametags entityNametags = new EntityNametags();
 
-    @Comment("Corrections applied only to what Bedrock Edition (Geyser) players see.")
-    private Bedrock bedrock = new Bedrock();
-
     @Comment("Match PAPI output strings. Quote reserved YAML 1.1 words: use placeholder: \"Yes\" not Yes (otherwise they become booleans).")
     private Map<String, List<PlaceholderReplacement>> placeholdersReplacements = defaultPlaceholdersReplacements();
 
@@ -391,25 +388,6 @@ public class Settings {
         public int resolveFollowInterval() {
             return Math.max(1, followInterval);
         }
-    }
-
-    /**
-     * Bedrock Edition has no text displays, so Geyser draws the nametag as the floating name of an invisible
-     * armor stand. That armor stand does not sit where the text display would, and the gap is corrected here.
-     */
-    @Configuration
-    @Getter
-    @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal"})
-    public static class Bedrock {
-
-        @Comment({
-                "Vertical correction (blocks) applied to the nametag a Bedrock player sees. 0 disables it.",
-                "A nametag mounted on a player renders about 0.6 blocks higher on Bedrock than on Java:",
-                "Geyser drops a text display 0.6 blocks to line its armor stand name up with the Java text,",
-                "but only while the display stands on its own, never while it rides something.",
-                "Lower this further if the name still floats too high, raise it towards 0 if it now sits too low."
-        })
-        private float nametagYOffset = -0.6f;
     }
 
     public record PlaceholderReplacement(String placeholder, String replacement) {

@@ -16,7 +16,6 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSe
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams;
 import com.google.common.collect.Maps;
 import org.alexdev.unlimitednametags.UnlimitedNameTags;
-import org.alexdev.unlimitednametags.config.NametagDisplayType;
 import org.alexdev.unlimitednametags.data.TeamData;
 import org.alexdev.unlimitednametags.nametags.EntityNameTagManager;
 import org.alexdev.unlimitednametags.packet.PacketNameTag;
@@ -32,10 +31,6 @@ public class PacketEventsListener extends PacketListenerAbstract {
     private static final int CUSTOM_NAME_INDEX = 2;
     /** {@code Entity.DATA_CUSTOM_NAME_VISIBLE}. */
     private static final int CUSTOM_NAME_VISIBLE_INDEX = 3;
-    /** {@code Display.DATA_TRANSLATION_ID}. */
-    private static final int TRANSLATION_INDEX = 11;
-    /** Vertical nudge (blocks) for clients on 1.20.1 and lower, which place a mounted display lower than 1.20.2+. */
-    private static final float LEGACY_TRANSLATION_OFFSET = 0.45f;
 
     private final UnlimitedNameTags plugin;
     private final Map<UUID, Map<String, TeamData>> teams;
@@ -311,7 +306,7 @@ public class PacketEventsListener extends PacketListenerAbstract {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private void handleMetaData(@NotNull PacketSendEvent event) {
-        if (!(event.getPlayer() instanceof Player viewer)) {
+        if (!(event.getPlayer() instanceof Player)) {
             return;
         }
 
@@ -319,10 +314,9 @@ public class PacketEventsListener extends PacketListenerAbstract {
             return;
         }
 
-        final float bedrockOffset = plugin.getConfigManager().getSettings().getBedrock().getNametagYOffset();
-        final boolean bedrock = bedrockOffset != 0f && plugin.isBedrockPlayer(viewer);
-        final boolean legacyClient = event.getUser().getClientVersion().isOlderThan(ClientVersion.V_1_20_2);
-        if (!bedrock && !legacyClient) {
+        int protocol = event.getUser().getClientVersion().getProtocolVersion();
+        //handle metadata for : bedrock players && client with version 1.20.1 or lower
+        if (protocol >= 764) {
             return;
         }
 
@@ -332,37 +326,15 @@ public class PacketEventsListener extends PacketListenerAbstract {
             return;
         }
 
-        final float adjustment = translationYAdjustment(textDisplay.get(), bedrock, bedrockOffset, legacyClient);
-        if (adjustment == 0f) {
-            return;
-        }
-
         for (final EntityData eData : packet.getEntityMetadata()) {
-            if (eData.getIndex() == TRANSLATION_INDEX) {
+            if (eData.getIndex() == 11) {
                 final Vector3f old = (Vector3f) eData.getValue();
-                final Vector3f newV = new Vector3f(old.getX(), old.getY() + adjustment, old.getZ());
+                final Vector3f newV = new Vector3f(old.getX(), old.getY() + 0.45f, old.getZ());
                 eData.setValue(newV);
                 event.markForReEncode(true);
                 return;
             }
         }
-    }
-
-    /**
-     * Vertical correction (blocks) for the translation this viewer is about to receive.
-     * <p>
-     * Bedrock viewers get one because Geyser turns a text display into the floating name of an invisible armor
-     * stand, and places that armor stand too high while the display rides a player. Only TEXT rows are touched:
-     * the seat Geyser gives a ridden display reads the translation of a text display and of nothing else, so
-     * moving an ITEM or BLOCK row would change nothing on Bedrock.
-     * Clients on 1.20.1 and lower keep the nudge this listener has always applied to them.
-     */
-    private float translationYAdjustment(@NotNull PaperNametagRow display, boolean bedrock, float bedrockOffset,
-                                         boolean legacyClient) {
-        if (bedrock && ((PacketNameTag) display).getCreatedDisplayType() == NametagDisplayType.TEXT) {
-            return bedrockOffset;
-        }
-        return legacyClient ? LEGACY_TRANSLATION_OFFSET : 0f;
     }
 
     /**
