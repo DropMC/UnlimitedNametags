@@ -1033,9 +1033,52 @@ public abstract class PacketNameTag implements AnimationPoseTarget, NametagPasse
         }
         final me.tofaa.entitylib.meta.Metadata metadata = wrapper.getEntityMeta().getMetadata();
         final me.tofaa.entitylib.meta.Metadata ownerMetadata = ownerEntity.getEntityMeta().getMetadata();
-        metadata.copyFrom(ownerMetadata);
+        copyMetadata(ownerMetadata, metadata);
         applyViewerOwnerMetadata(wrapper, ownerEntity);
         metadata.setNotifyAboutChanges(false);
+    }
+
+    /**
+     * EntityLib's {@code copyTo} locks only the target's pending-changes map and iterates the source's
+     * unlocked, so a concurrent {@code setIndex} on the owner throws ConcurrentModificationException.
+     * Holding the source's map (the lock {@code setIndex} itself takes) closes that race.
+     */
+    private static void copyMetadata(@NotNull me.tofaa.entitylib.meta.Metadata source,
+                                     @NotNull me.tofaa.entitylib.meta.Metadata target) {
+        final Object sourceLock = pendingChangesLock(source);
+        if (sourceLock == null) {
+            target.copyFrom(source);
+            return;
+        }
+        synchronized (sourceLock) {
+            target.copyFrom(source);
+        }
+    }
+
+    @Nullable
+    private static Object pendingChangesLock(@NotNull me.tofaa.entitylib.meta.Metadata metadata) {
+        if (PENDING_CHANGES_FIELD == null) {
+            return null;
+        }
+        try {
+            return PENDING_CHANGES_FIELD.get(metadata);
+        } catch (IllegalAccessException e) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private static final java.lang.reflect.Field PENDING_CHANGES_FIELD = findPendingChangesField();
+
+    @Nullable
+    private static java.lang.reflect.Field findPendingChangesField() {
+        try {
+            final java.lang.reflect.Field field = me.tofaa.entitylib.meta.Metadata.class.getDeclaredField("notNotifiedChanges");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return null;
+        }
     }
 
     @NotNull
