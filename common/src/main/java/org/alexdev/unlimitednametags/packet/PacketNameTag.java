@@ -1038,11 +1038,6 @@ public abstract class PacketNameTag implements AnimationPoseTarget, NametagPasse
         metadata.setNotifyAboutChanges(false);
     }
 
-    /**
-     * EntityLib's {@code copyTo} locks only the target's pending-changes map and iterates the source's
-     * unlocked, so a concurrent {@code setIndex} on the owner throws ConcurrentModificationException.
-     * Holding the source's map (the lock {@code setIndex} itself takes) closes that race.
-     */
     private static void copyMetadata(@NotNull me.tofaa.entitylib.meta.Metadata source,
                                      @NotNull me.tofaa.entitylib.meta.Metadata target) {
         final Object sourceLock = pendingChangesLock(source);
