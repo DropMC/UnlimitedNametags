@@ -7,6 +7,7 @@ import com.github.retrooper.packetevents.protocol.world.Location;
 import com.google.common.collect.Sets;
 import lombok.Getter;
 import lombok.Setter;
+import me.tofaa.entitylib.meta.Metadata;
 import me.tofaa.entitylib.meta.display.AbstractDisplayMeta;
 import me.tofaa.entitylib.meta.display.TextDisplayMeta;
 import me.tofaa.entitylib.wrapper.WrapperEntity;
@@ -23,6 +24,7 @@ import org.alexdev.unlimitednametags.platform.NametagRuntime;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
@@ -1031,11 +1033,48 @@ public abstract class PacketNameTag implements AnimationPoseTarget, NametagPasse
         if (ownerEntity == null) {
             return;
         }
-        final me.tofaa.entitylib.meta.Metadata metadata = wrapper.getEntityMeta().getMetadata();
-        final me.tofaa.entitylib.meta.Metadata ownerMetadata = ownerEntity.getEntityMeta().getMetadata();
-        metadata.copyFrom(ownerMetadata);
+        final Metadata metadata = wrapper.getEntityMeta().getMetadata();
+        final Metadata ownerMetadata = ownerEntity.getEntityMeta().getMetadata();
+        copyMetadata(ownerMetadata, metadata);
         applyViewerOwnerMetadata(wrapper, ownerEntity);
         metadata.setNotifyAboutChanges(false);
+    }
+
+    private static void copyMetadata(@NotNull Metadata source, @NotNull Metadata target) {
+        final Object sourceLock = pendingChangesLock(source);
+        if (sourceLock == null) {
+            target.copyFrom(source);
+            return;
+        }
+        synchronized (sourceLock) {
+            target.copyFrom(source);
+        }
+    }
+
+    @Nullable
+    private static Object pendingChangesLock(@NotNull Metadata metadata) {
+        if (PENDING_CHANGES_FIELD == null) {
+            return null;
+        }
+        try {
+            return PENDING_CHANGES_FIELD.get(metadata);
+        } catch (IllegalAccessException e) {
+            return null;
+        }
+    }
+
+    @Nullable
+    private static final Field PENDING_CHANGES_FIELD = findPendingChangesField();
+
+    @Nullable
+    private static Field findPendingChangesField() {
+        try {
+            final Field field = Metadata.class.getDeclaredField("notNotifiedChanges");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return null;
+        }
     }
 
     @NotNull
