@@ -33,7 +33,7 @@ public interface CreativeHook {
     ResourcePack getResourcePack();
 
     @NotNull
-    Map<Key, Map<Integer, Model>> getCmdCache();
+    Map<Key, Map<Integer, Optional<Model>>> getCmdCache();
 
     default double getHigh(@NotNull ItemStack helmet) {
         if (!helmet.hasItemMeta()) {
@@ -81,14 +81,15 @@ public interface CreativeHook {
             }
             return Optional.empty();
         }
-        final Map<Integer, Model> cmdCache = getCmdCache().computeIfAbsent(item.getType().getKey(), k -> Maps.newConcurrentMap());
+        final Map<Integer, Optional<Model>> cmdCache = getCmdCache().computeIfAbsent(item.getType().getKey(), k -> Maps.newConcurrentMap());
 
         final ItemMeta itemMeta = item.getItemMeta();
         if (itemMeta.hasCustomModelData()) {
             final int customModelData = itemMeta.getCustomModelData();
             final String asString = Integer.toString(customModelData);
-            if (cmdCache.containsKey(customModelData)) {
-                return Optional.of(cmdCache.get(customModelData));
+            final Optional<Model> cached = cmdCache.get(customModelData);
+            if (cached != null) {
+                return cached;
             }
 
             var key = new NamespacedKey(item.getType().getKey().namespace(), "item/" + item.getType().getKey().value());
@@ -99,7 +100,7 @@ public interface CreativeHook {
                 if (optionalOverride.isPresent()) {
                     final Model model = pack.model(optionalOverride.get().model());
                     if (model != null) {
-                        cmdCache.put(customModelData, model);
+                        cmdCache.put(customModelData, Optional.of(model));
                         return Optional.of(model);
                     }
                 }
@@ -114,14 +115,10 @@ public interface CreativeHook {
                 }
             }
 
-            return optionalOverride.flatMap(override -> {
-                final Model model = pack.model(override.model());
-                if (model == null) {
-                    return Optional.empty();
-                }
-                cmdCache.put(customModelData, model);
-                return Optional.of(model);
-            });
+            // Misses are cached too: the fallback scans every model in the pack.
+            final Optional<Model> resolved = optionalOverride.map(override -> pack.model(override.model()));
+            cmdCache.put(customModelData, resolved);
+            return resolved;
         }
 
         if (!PacketEvents.getAPI().getServerManager().getVersion().isOlderThan(ServerVersion.V_1_21_3)

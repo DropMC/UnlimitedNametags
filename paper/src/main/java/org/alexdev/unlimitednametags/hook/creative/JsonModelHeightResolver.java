@@ -18,7 +18,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -26,6 +29,9 @@ public final class JsonModelHeightResolver {
     private static final double MULTIPLIER = 1.1;
 
     private final File zipFile;
+    // Hooks build a new resolver whenever the pack is regenerated, so these never go stale.
+    private final Map<String, Optional<JsonObject>> jsonCache = new ConcurrentHashMap<>();
+    private final Map<Key, OptionalDouble> heightCache = new ConcurrentHashMap<>();
 
     public JsonModelHeightResolver(@NotNull File zipFile) {
         this.zipFile = zipFile;
@@ -66,7 +72,10 @@ public final class JsonModelHeightResolver {
         if (key == null || !zipFile.exists()) {
             return OptionalDouble.empty();
         }
+        return heightCache.computeIfAbsent(key, this::resolveHeightForKey);
+    }
 
+    private OptionalDouble resolveHeightForKey(@NotNull Key key) {
         OptionalDouble directModel = heightForModel(key);
         if (directModel.isPresent()) {
             return directModel;
@@ -194,6 +203,10 @@ public final class JsonModelHeightResolver {
     }
 
     private JsonObject readJson(@NotNull String path) {
+        return jsonCache.computeIfAbsent(path, k -> Optional.ofNullable(readJsonFromZip(k))).orElse(null);
+    }
+
+    private JsonObject readJsonFromZip(@NotNull String path) {
         try (ZipFile zip = new ZipFile(zipFile)) {
             ZipEntry entry = zip.getEntry(path);
             if (entry == null) {
