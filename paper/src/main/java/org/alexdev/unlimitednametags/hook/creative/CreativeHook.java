@@ -115,7 +115,6 @@ public interface CreativeHook {
                 }
             }
 
-            // Misses are cached too: the fallback scans every model in the pack.
             final Optional<Model> resolved = optionalOverride.map(override -> pack.model(override.model()));
             cmdCache.put(customModelData, resolved);
             return resolved;

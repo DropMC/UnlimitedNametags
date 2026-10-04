@@ -29,7 +29,6 @@ public final class JsonModelHeightResolver {
     private static final double MULTIPLIER = 1.1;
 
     private final File zipFile;
-    // Hooks build a new resolver whenever the pack is regenerated, so these never go stale.
     private final Map<String, Optional<JsonObject>> jsonCache = new ConcurrentHashMap<>();
     private final Map<Key, OptionalDouble> heightCache = new ConcurrentHashMap<>();
 
