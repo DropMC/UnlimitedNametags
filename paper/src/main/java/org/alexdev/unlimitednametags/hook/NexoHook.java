@@ -31,7 +31,7 @@ import java.util.OptionalDouble;
 @Getter
 public class NexoHook extends Hook implements Listener, CreativeHook, HatHookPaper {
 
-    private final Map<Key, Map<Integer, Model>> cmdCache;
+    private final Map<Key, Map<Integer, Optional<Model>>> cmdCache;
     private ResourcePack resourcePack;
     private JsonModelHeightResolver jsonModelHeightResolver;
 

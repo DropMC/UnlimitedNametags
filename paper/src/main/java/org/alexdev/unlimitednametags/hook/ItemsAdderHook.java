@@ -32,7 +32,7 @@ public class ItemsAdderHook extends Hook implements Listener, HatHook, CreativeH
 
     private static final Path generatedPath = new File(Bukkit.getPluginsFolder(),"ItemsAdder" + File.separator + "output" + File.separator + "generated.zip").toPath();
 
-    private final Map<Key, Map<Integer, Model>> cmdCache;
+    private final Map<Key, Map<Integer, Optional<Model>>> cmdCache;
     private ResourcePack resourcePack;
     private JsonModelHeightResolver jsonModelHeightResolver;
 
