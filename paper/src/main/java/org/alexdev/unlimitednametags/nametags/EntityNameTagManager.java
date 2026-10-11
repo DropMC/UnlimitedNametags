@@ -1,5 +1,6 @@
 package org.alexdev.unlimitednametags.nametags;
 
+import com.github.Anon8281.universalScheduler.UniversalScheduler;
 import com.github.Anon8281.universalScheduler.scheduling.tasks.MyScheduledTask;
 import com.github.retrooper.packetevents.protocol.player.User;
 import net.kyori.adventure.text.Component;
@@ -88,9 +89,11 @@ public class EntityNameTagManager {
     private void adoptAlreadyTrackedEntities() {
         for (final World world : Bukkit.getWorlds()) {
             for (final Entity entity : world.getEntities()) {
-                if (shouldRender(entity)) {
-                    handleStateChanged(entity);
-                }
+                onEntityThread(entity, () -> {
+                    if (shouldRender(entity)) {
+                        handleStateChanged(entity);
+                    }
+                });
             }
         }
     }
@@ -112,7 +115,8 @@ public class EntityNameTagManager {
     }
 
     /**
-     * Runs synchronously: the tick reads live entity state (custom name, health, passengers).
+     * Runs synchronously: the tick reads live entity state (custom name, health, passengers). On Folia the timers run
+     * on the global region, which owns no entity, so each entity is handed to the region it stands in.
      */
     private void startTask(final int interval) {
         refreshTask = plugin.getTaskScheduler().runTaskTimer(this::tick, interval, interval);
@@ -268,11 +272,13 @@ public class EntityNameTagManager {
     private void tick() {
         for (final Map.Entry<UUID, TrackedEntity> mapping : new HashSet<>(tracked.entrySet())) {
             final TrackedEntity entry = mapping.getValue();
-            if (!shouldRender(entry.entity())) {
-                remove(mapping.getKey());
-                continue;
-            }
-            entry.display().updateText(buildText(entry.entity()));
+            onEntityThread(entry.entity(), () -> {
+                if (!shouldRender(entry.entity())) {
+                    remove(mapping.getKey());
+                    return;
+                }
+                entry.display().updateText(buildText(entry.entity()));
+            });
         }
     }
 
@@ -283,9 +289,22 @@ public class EntityNameTagManager {
     private void followTick() {
         for (final TrackedEntity entry : tracked.values()) {
             if (entry.display().isFollowing()) {
-                entry.display().syncPosition();
+                onEntityThread(entry.entity(), entry.display()::syncPosition);
             }
         }
+    }
+
+    /**
+     * Runs a task that reads an entity's state: right away on Bukkit, where every task already runs on the main
+     * thread, and on the entity's region on Folia. A task for an entity removed before its region gets to it is
+     * dropped.
+     */
+    private void onEntityThread(@NotNull final Entity entity, @NotNull final Runnable task) {
+        if (!UniversalScheduler.isFolia || plugin.getTaskScheduler().isEntityThread(entity)) {
+            task.run();
+            return;
+        }
+        plugin.getTaskScheduler().execute(entity, task);
     }
 
     /**
