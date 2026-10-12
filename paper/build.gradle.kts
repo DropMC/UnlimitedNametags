@@ -42,6 +42,9 @@ dependencies {
     compileOnly(libs.libs.disguises)
     compileOnly(libs.hmcCosmetics)
     compileOnly(libs.modelEngine)
+    // Only the API itself: it brings Adventure 5 and Kotlin along, newer than what this plugin builds against.
+    compileOnly(libs.betterModel) { isTransitive = false }
+    compileOnly(libs.betterModelApi) { isTransitive = false }
 
     implementation(libs.universalScheduler)
     implementation(libs.libbyBukkit)
@@ -57,6 +60,12 @@ dependencies {
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testRuntimeOnly(libs.paperApi)
+}
+
+// The BetterModel API is built for Java 21 and uses its collections, which a Java 17 target cannot see. The
+// Paper versions this module runs on need Java 21 anyway.
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(21)
 }
 
 tasks.withType<Test>().configureEach {

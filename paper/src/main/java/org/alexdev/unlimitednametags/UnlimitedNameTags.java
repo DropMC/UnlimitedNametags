@@ -286,6 +286,12 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
             getLogger().info("ModelEngine found, hooking into it");
         }
 
+        if (Bukkit.getPluginManager().isPluginEnabled("BetterModel")) {
+            final BetterModelHook hook = new BetterModelHook(this);
+            hooks.put(BetterModelHook.class, hook);
+            getLogger().info("BetterModel found, hooking into it");
+        }
+
         if (Bukkit.getPluginManager().isPluginEnabled("HMCCosmetics")) {
             final HMCCosmeticsHook hook = new HMCCosmeticsHook(this);
             hatHooks.add(hook);
