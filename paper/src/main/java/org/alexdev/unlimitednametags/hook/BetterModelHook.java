@@ -1,6 +1,7 @@
 package org.alexdev.unlimitednametags.hook;
 
 import kr.toxicity.model.api.BetterModel;
+import kr.toxicity.model.api.bone.BoneMovement;
 import kr.toxicity.model.api.bone.RenderedBone;
 import kr.toxicity.model.api.nms.ModelDisplay;
 import kr.toxicity.model.api.tracker.EntityTracker;
@@ -30,13 +31,14 @@ public class BetterModelHook extends ModelHook {
         }
 
         double tallest = 0;
+        final BoneMovement cache = new BoneMovement();
         for (final EntityTracker tracker : registry.trackers()) {
             for (final RenderedBone bone : tracker.bones()) {
                 final ModelDisplay display = bone.getDisplay();
                 if (display == null || display.invisible()) {
                     continue;
                 }
-                tallest = Math.max(tallest, bone.worldPosition().y());
+                tallest = Math.max(tallest, bone.worldPosition(cache).y());
             }
         }
         return tallest;

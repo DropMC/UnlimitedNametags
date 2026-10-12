@@ -66,6 +66,8 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
     private TrackerManager trackerManager;
     private Map<Class<? extends Hook>, Hook> hooks;
     private List<HatHook> hatHooks;
+    /** The installed model plugins, each of which can measure how tall an entity's model is. */
+    private List<ModelHook> modelHooks;
     private TaskScheduler taskScheduler;
     private KyoriManager kyoriManager;
     private ConditionalManager conditionalManager;
@@ -82,6 +84,7 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
     public void onLoad() {
         hooks = Maps.newHashMap();
         hatHooks = Lists.newCopyOnWriteArrayList();
+        modelHooks = Lists.newCopyOnWriteArrayList();
     }
 
     @Override
@@ -283,12 +286,14 @@ public final class UnlimitedNameTags extends JavaPlugin implements UnlimitedName
         if (Bukkit.getPluginManager().isPluginEnabled("ModelEngine")) {
             final ModelEngineHook hook = new ModelEngineHook(this);
             hooks.put(ModelEngineHook.class, hook);
+            modelHooks.add(hook);
             getLogger().info("ModelEngine found, hooking into it");
         }
 
         if (Bukkit.getPluginManager().isPluginEnabled("BetterModel")) {
             final BetterModelHook hook = new BetterModelHook(this);
             hooks.put(BetterModelHook.class, hook);
+            modelHooks.add(hook);
             getLogger().info("BetterModel found, hooking into it");
         }
 

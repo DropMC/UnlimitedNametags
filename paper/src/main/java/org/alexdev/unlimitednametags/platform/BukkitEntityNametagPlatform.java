@@ -5,8 +5,6 @@ import com.github.retrooper.packetevents.protocol.player.User;
 import com.github.retrooper.packetevents.protocol.world.Location;
 import io.github.retrooper.packetevents.util.SpigotConversionUtil;
 import org.alexdev.unlimitednametags.UnlimitedNameTags;
-import org.alexdev.unlimitednametags.hook.BetterModelHook;
-import org.alexdev.unlimitednametags.hook.ModelEngineHook;
 import org.alexdev.unlimitednametags.hook.ModelHook;
 import org.alexdev.unlimitednametags.hook.ViaVersionHook;
 import org.bukkit.entity.Entity;
@@ -24,9 +22,6 @@ import java.util.function.Supplier;
  * owner side resolves an entity.
  */
 public final class BukkitEntityNametagPlatform implements NametagPlatformBridge {
-
-    /** The model plugins a nametag measures an entity's model with, whichever of them are installed. */
-    private static final List<Class<? extends ModelHook>> MODEL_HOOKS = List.of(ModelEngineHook.class, BetterModelHook.class);
 
     /** Model height in blocks, measured once and kept; 0 until a model has actually been seen. */
     private volatile double measuredModelHeight;
@@ -214,8 +209,10 @@ public final class BukkitEntityNametagPlatform implements NametagPlatformBridge 
         }
 
         double modelHeight = 0;
-        for (final Class<? extends ModelHook> type : MODEL_HOOKS) {
-            modelHeight = Math.max(modelHeight, plugin.getHook(type).map(hook -> hook.modelHeight(entity)).orElse(0d));
+        // Indexed, so this path, run on every position push of an entity without a model, allocates no iterator.
+        final List<ModelHook> modelHooks = plugin.getModelHooks();
+        for (int i = 0; i < modelHooks.size(); i++) {
+            modelHeight = Math.max(modelHeight, modelHooks.get(i).modelHeight(entity));
         }
         if (modelHeight <= 0) {
             return entity.getHeight();
