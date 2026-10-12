@@ -1,5 +1,6 @@
 package org.alexdev.unlimitednametags.nametags;
 
+import com.github.Anon8281.universalScheduler.UniversalScheduler;
 import com.github.Anon8281.universalScheduler.scheduling.tasks.MyScheduledTask;
 import com.github.retrooper.packetevents.protocol.player.User;
 import net.kyori.adventure.text.Component;
@@ -88,10 +89,18 @@ public class EntityNameTagManager {
     private void adoptAlreadyTrackedEntities() {
         for (final World world : Bukkit.getWorlds()) {
             for (final Entity entity : world.getEntities()) {
-                if (shouldRender(entity)) {
-                    handleStateChanged(entity);
+                if (!UniversalScheduler.isFolia) {
+                    adopt(entity);
+                    continue;
                 }
+                plugin.getTaskScheduler().execute(entity, () -> adopt(entity));
             }
+        }
+    }
+
+    private void adopt(@NotNull final Entity entity) {
+        if (shouldRender(entity)) {
+            handleStateChanged(entity);
         }
     }
 
@@ -112,12 +121,34 @@ public class EntityNameTagManager {
     }
 
     /**
-     * Runs synchronously: the tick reads live entity state (custom name, health, passengers).
+     * Runs synchronously: the tick reads live entity state (custom name, health, passengers). On Folia no timer can
+     * read every entity, since each belongs to its own region, so each entity gets its own timers instead, started
+     * with its display in {@link #startEntityTasks}.
      */
     private void startTask(final int interval) {
+        if (UniversalScheduler.isFolia) {
+            return;
+        }
         refreshTask = plugin.getTaskScheduler().runTaskTimer(this::tick, interval, interval);
         final int followInterval = settings().resolveFollowInterval();
         followTask = plugin.getTaskScheduler().runTaskTimer(this::followTick, followInterval, followInterval);
+    }
+
+    /**
+     * Folia only: the refresh and follow timers of one entity, on the entity's own scheduler, so they run on the
+     * region that owns it and follow it across regions. They are started once with the display and stop with it, or
+     * by themselves when the entity is removed.
+     */
+    private void startEntityTasks(@NotNull final UUID entityId, @NotNull final TrackedEntity entry) {
+        final Settings.EntityNametags config = settings();
+        final int interval = config.resolveRefreshInterval();
+        entry.refreshTask = plugin.getTaskScheduler().runTaskTimer(entry.entity(), () -> refresh(entityId, entry),
+                interval, interval);
+        if (entry.display().isFollowing()) {
+            final int followInterval = config.resolveFollowInterval();
+            entry.followTask = plugin.getTaskScheduler().runTaskTimer(entry.entity(), entry.display()::syncPosition,
+                    followInterval, followInterval);
+        }
     }
 
     private void stopTask() {
@@ -237,6 +268,9 @@ public class EntityNameTagManager {
         final TrackedEntity entry = new TrackedEntity(entity, display);
         entry.display().updateText(buildText(entity));
         byEntityId.put(entity.getEntityId(), entityId);
+        if (UniversalScheduler.isFolia) {
+            startEntityTasks(entityId, entry);
+        }
         return entry;
     }
 
@@ -252,6 +286,7 @@ public class EntityNameTagManager {
             return;
         }
         byEntityId.remove(entry.entity().getEntityId());
+        entry.cancelTasks();
         entry.display().remove();
     }
 
@@ -265,15 +300,21 @@ public class EntityNameTagManager {
 
     // ─── Refresh ──────────────────────────────────────────────────────────────
 
+    /**
+     * Bukkit only. The map's iterator tolerates the removals {@link #refresh} makes, so it is walked directly.
+     */
     private void tick() {
-        for (final Map.Entry<UUID, TrackedEntity> mapping : new HashSet<>(tracked.entrySet())) {
-            final TrackedEntity entry = mapping.getValue();
-            if (!shouldRender(entry.entity())) {
-                remove(mapping.getKey());
-                continue;
-            }
-            entry.display().updateText(buildText(entry.entity()));
+        for (final Map.Entry<UUID, TrackedEntity> mapping : tracked.entrySet()) {
+            refresh(mapping.getKey(), mapping.getValue());
         }
+    }
+
+    private void refresh(@NotNull final UUID entityId, @NotNull final TrackedEntity entry) {
+        if (!shouldRender(entry.entity())) {
+            remove(entityId);
+            return;
+        }
+        entry.display().updateText(buildText(entry.entity()));
     }
 
     /**
@@ -426,8 +467,37 @@ public class EntityNameTagManager {
     }
 
     /**
-     * One rendered entity: the Bukkit handle and its display.
+     * One rendered entity: the Bukkit handle, its display and, on Folia, its own timers.
      */
-    private record TrackedEntity(@NotNull Entity entity, @NotNull EntityTextPacketNameTag display) {
+    private static final class TrackedEntity {
+
+        private final Entity entity;
+        private final EntityTextPacketNameTag display;
+        private MyScheduledTask refreshTask;
+        private MyScheduledTask followTask;
+
+        private TrackedEntity(@NotNull final Entity entity, @NotNull final EntityTextPacketNameTag display) {
+            this.entity = entity;
+            this.display = display;
+        }
+
+        @NotNull
+        Entity entity() {
+            return entity;
+        }
+
+        @NotNull
+        EntityTextPacketNameTag display() {
+            return display;
+        }
+
+        void cancelTasks() {
+            if (refreshTask != null) {
+                refreshTask.cancel();
+            }
+            if (followTask != null) {
+                followTask.cancel();
+            }
+        }
     }
 }
