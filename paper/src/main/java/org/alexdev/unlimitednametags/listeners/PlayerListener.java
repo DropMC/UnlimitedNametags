@@ -222,8 +222,7 @@ public class PlayerListener implements PackSendHandler {
                 }
                 return;
             }
-            plugin.getNametagManager().removeAllViewers(player);
-            plugin.getNametagManager().blockPlayer(player);
+            plugin.getNametagManager().hideFromViewersBlindToInvisible(player);
         } else if (event.getAction() == EntityPotionEffectEvent.Action.REMOVED
                 || event.getAction() == EntityPotionEffectEvent.Action.CLEARED) {
             if (event.getOldEffect() == null || !event.getOldEffect().getType().equals(PotionEffectType.INVISIBILITY)) {

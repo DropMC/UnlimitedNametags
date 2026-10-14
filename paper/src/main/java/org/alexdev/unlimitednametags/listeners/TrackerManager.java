@@ -68,8 +68,6 @@ public class TrackerManager {
     public void handleAdd(@NotNull Player player, @NotNull Player target) {
         if (player.hasMetadata("NPC") || target.hasMetadata("NPC"))
             return;
-        if (target.hasPotionEffect(org.bukkit.potion.PotionEffectType.INVISIBILITY))
-            return;
 
         if (trackedPlayers.containsEntry(player.getUniqueId(), target.getUniqueId())) {
             return;

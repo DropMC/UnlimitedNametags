@@ -52,6 +52,9 @@ import java.util.stream.Collectors;
 @Getter
 public class NameTagManager implements UntNametagManagerPaper {
 
+    /** Bukkit metadata on a viewer who sees the nametags of invisible players. */
+    public static final String SEES_INVISIBLE_METADATA = "sees-invisible";
+
     private static final float COMPACT_ITEM_DISPLAY_HEIGHT_BLOCKS = 0.35f;
     private static final float COMPACT_BLOCK_DISPLAY_HEIGHT_BLOCKS = 0.5f;
 
@@ -428,8 +431,30 @@ public class NameTagManager implements UntNametagManagerPaper {
     private boolean shouldSuppressNametag(@NotNull Player player) {
         return !player.isOnline()
                 || isBlocked(player)
-                || player.hasPotionEffect(PotionEffectType.INVISIBILITY)
                 || player.getGameMode() == GameMode.SPECTATOR;
+    }
+
+    /**
+     * Whether this viewer may see the owner's nametag as far as invisibility goes. An invisible owner
+     * keeps the nametag, shown only to viewers holding {@link #SEES_INVISIBLE_METADATA}, which a
+     * server plugin sets on staff who can see invisible players (DropMC's moderation mode).
+     */
+    public boolean canSeeThroughInvisibility(@NotNull Player viewer, @NotNull Player owner) {
+        return !owner.hasPotionEffect(PotionEffectType.INVISIBILITY) || viewer.hasMetadata(SEES_INVISIBLE_METADATA);
+    }
+
+    /** Takes the owner's nametag from every current viewer, the owner included, who no longer passes {@link #canSeeThroughInvisibility}. */
+    public void hideFromViewersBlindToInvisible(@NotNull Player owner) {
+        for (PaperNametagRow row : getPacketDisplays(owner)) {
+            final PacketNameTag packetNameTag = (PacketNameTag) row;
+            for (UUID viewerId : new HashSet<>(packetNameTag.getViewers())) {
+                final Player viewer = plugin.getPlayerListener().getPlayer(viewerId);
+                if (viewer == null || canSeeThroughInvisibility(viewer, owner)) {
+                    continue;
+                }
+                packetNameTag.hideFromViewer(viewerId);
+            }
+        }
     }
 
     public void clearCache(@NotNull UUID uuid) {
@@ -746,16 +771,6 @@ public class NameTagManager implements UntNametagManagerPaper {
         if (PacketEvents.getAPI().getPlayerManager().getUser(player) == null) {
             if (debug) {
                 plugin.getLogger().info("Player " + player.getName() + " is not loaded");
-            }
-            return false;
-        }
-
-        if (player.hasPotionEffect(PotionEffectType.INVISIBILITY)) {
-            if (debug) {
-                plugin.getLogger().info("Player " + player.getName() + " has invisibility potion effect, blocking");
-            }
-            if (canBlock) {
-                blockPlayer(player);
             }
             return false;
         }
