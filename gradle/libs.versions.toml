@@ -28,6 +28,7 @@ featherVersion = "0.0.5"
 labymodVersion = "1.0.6"
 hmcCosmetics = "2.8.2-fed13b8e"
 modelEngine = "R4.0.9"
+betterModel = "3.5.0"
 snakeyamlEngineVersion = "2.7"
 
 [libraries]
@@ -62,3 +63,5 @@ feather = { module = "net.digitalingot.feather-server-api:api", version.ref = "f
 labymod = { module = "net.labymod.serverapi:server-bukkit", version.ref = "labymodVersion" }
 hmcCosmetics = { module = "com.hibiscusmc:HMCCosmetics", version.ref = "hmcCosmetics" }
 modelEngine = { module = "com.ticxo.modelengine:ModelEngine", version.ref = "modelEngine" }
+betterModel = { module = "io.github.toxicity188:bettermodel-bukkit-api", version.ref = "betterModel" }
+betterModelApi = { module = "io.github.toxicity188:bettermodel-api", version.ref = "betterModel" }

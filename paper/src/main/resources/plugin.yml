@@ -24,6 +24,8 @@ softdepend:
   - Oraxen
   - Nexo
   - HMCCosmetics
+  - ModelEngine
+  - BetterModel
 permissions:
   unt.shownametags:
     default: true

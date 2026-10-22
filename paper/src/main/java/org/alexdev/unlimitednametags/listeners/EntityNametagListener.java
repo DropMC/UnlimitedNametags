@@ -123,7 +123,8 @@ public class EntityNametagListener implements Listener {
     }
 
     private void scheduleStateChange(@NotNull Entity entity, long delayTicks) {
-        plugin.getTaskScheduler().runTaskLater(() -> {
+        // Bound to the entity so that on Folia it runs on the region the entity stands in.
+        plugin.getTaskScheduler().runTaskLater(entity, () -> {
             if (entity.isValid()) {
                 plugin.getEntityNametagManager().handleStateChanged(entity);
             }
